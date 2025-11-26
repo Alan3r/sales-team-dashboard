@@ -12,8 +12,20 @@ export function useMongoStorage<T extends StorageItem>(collectionKey: string) {
     loadData();
   }, [collectionKey]);
 
+  // Allow using a direct API endpoint instead of Supabase Functions.
+  // Useful when hosting the frontend on GitHub Pages and using a simple
+  // serverless API (Vercel / Render) or MongoDB Realm App Services.
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const loadData = async () => {
     try {
+      if (API_URL) {
+        const res = await fetch(`${API_URL}/${collectionKey}`);
+        const json = await res.json();
+        setData(json as T[]);
+        return;
+      }
+
       const { data: result, error } = await supabase.functions.invoke('dashboard-api/' + collectionKey, {
         method: 'GET',
       });
@@ -35,6 +47,16 @@ export function useMongoStorage<T extends StorageItem>(collectionKey: string) {
 
   const addItem = async (item: T) => {
     try {
+      if (API_URL) {
+        await fetch(`${API_URL}/${collectionKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item),
+        });
+        await loadData();
+        return;
+      }
+
       const { error } = await supabase.functions.invoke('dashboard-api/' + collectionKey, {
         body: item,
         method: 'POST',
@@ -63,6 +85,16 @@ export function useMongoStorage<T extends StorageItem>(collectionKey: string) {
         path = `weeks/${id}/${weekData.week_start}`;
       }
 
+      if (API_URL) {
+        await fetch(`${API_URL}/${path}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates),
+        });
+        await loadData();
+        return;
+      }
+
       const { error } = await supabase.functions.invoke('dashboard-api/' + path, {
         body: updates,
         method: 'PUT',
@@ -82,6 +114,14 @@ export function useMongoStorage<T extends StorageItem>(collectionKey: string) {
 
   const deleteItem = async (id: string) => {
     try {
+      if (API_URL) {
+        await fetch(`${API_URL}/${collectionKey}/${id}`, {
+          method: 'DELETE',
+        });
+        await loadData();
+        return;
+      }
+
       const { error } = await supabase.functions.invoke('dashboard-api/' + collectionKey + '/' + id, {
         method: 'DELETE',
       });
@@ -100,6 +140,12 @@ export function useMongoStorage<T extends StorageItem>(collectionKey: string) {
 
   const clearAll = async () => {
     try {
+      if (API_URL) {
+        await fetch(`${API_URL}/clear-all`, { method: 'POST' });
+        await loadData();
+        return;
+      }
+
       const { error } = await supabase.functions.invoke('dashboard-api/clear-all', {
         method: 'POST',
       });

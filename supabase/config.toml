@@ -1,0 +1,4 @@
+project_id = "kmzsghewvgrfierdofem"
+
+[functions.dashboard-api]
+verify_jwt = false
